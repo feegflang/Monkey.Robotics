@@ -29,6 +29,28 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 				return new KnownCharacteristic { Name = "Unknown", ID = Guid.Empty };
 		}
 
+        public static IEnumerable<KnownCharacteristic> All()
+        {
+            lock (_lock)
+            {
+                if (_items == null)
+                    LoadItemsFromJson();
+            }
+            return _items.Values;
+        }
+
+        public static void Add(KnownCharacteristic characterisic)
+        {
+            if (characterisic.ID == Guid.Empty) throw new ArgumentException("characterisic must have a valid GUID", "characterisic");
+            lock (_lock)
+            {
+                if (_items == null)
+                    LoadItemsFromJson();
+                _items[characterisic.ID] = characterisic;
+            }
+
+        }
+
 		public static void LoadItemsFromJson()
 		{
 			_items = new Dictionary<Guid, KnownCharacteristic> ();

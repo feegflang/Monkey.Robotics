@@ -29,6 +29,28 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 				return new KnownDescriptor { Name = "Unknown", ID = Guid.Empty };
 		}
 
+        public static IEnumerable<KnownDescriptor> All ()
+        {
+            lock (_lock)
+            {
+                if (_items == null)
+                    LoadItemsFromJson();
+            }
+            return _items.Values;
+        }
+
+        public static void Add (KnownDescriptor descriptor)
+        {
+            if (descriptor.ID == Guid.Empty) throw new ArgumentException("descriptor must have a valid GUID", "descriptor");
+            lock (_lock)
+            {
+                if (_items == null)
+                    LoadItemsFromJson();
+                _items[descriptor.ID] = descriptor;
+            }
+
+        }
+
 		public static void LoadItemsFromJson()
 		{
 			_items = new Dictionary<Guid, KnownDescriptor> ();

@@ -33,6 +33,28 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 
 		}
 
+        public static IEnumerable<KnownService> All()
+        {
+            lock (_lock)
+            {
+                if (_items == null)
+                    LoadItemsFromJson();
+            }
+            return _items.Values;
+        }
+
+        public static void Add(KnownService service)
+        {
+            if (service.ID == Guid.Empty) throw new ArgumentException("service must have a valid GUID", "service");
+            lock (_lock)
+            {
+                if (_items == null)
+                    LoadItemsFromJson();
+                _items[service.ID] = service;
+            }
+
+        }
+
 		public static void LoadItemsFromJson()
 		{
 			_items = new Dictionary<Guid, KnownService> ();

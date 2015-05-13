@@ -1,26 +1,36 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Windows.Devices.Bluetooth.GenericAttributeProfile;
 
 namespace Robotics.Mobile.Core.Bluetooth.LE
 {
     class Descriptor : IDescriptor
     {
+
+        private GattDescriptor _descriptor;
+
         public object NativeDescriptor
         {
-            get { throw new NotImplementedException(); }
+            get { return _descriptor; }
         }
 
         public Guid ID
         {
-            get { throw new NotImplementedException(); }
+            get { return _descriptor.Uuid; }
         }
 
+        private string _name;
         public string Name
         {
-            get { throw new NotImplementedException(); }
+            get {
+                if (this._name == null)
+                    this._name = KnownDescriptors.Lookup(this.ID).Name;
+                return this._name;
+            }
+        }
+
+        public Descriptor(GattDescriptor descriptor)
+        {
+            _descriptor = descriptor;
         }
     }
 }
