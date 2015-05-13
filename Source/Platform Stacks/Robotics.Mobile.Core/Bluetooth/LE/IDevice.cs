@@ -32,7 +32,12 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 		//static IDevice FromNativeDevice (object nativeDevice);
 
 		IList<IService> Services { get; }
-		void DiscoverServices();
+
+        /// <summary>
+        /// Discover services on the BLE device. IMPORTANT: On Windows, this must first be called from the UI 
+        /// thread in order to display a consent dialog to the user.
+        /// </summary>
+        void DiscoverServices();
 	}
 }
 

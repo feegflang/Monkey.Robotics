@@ -35,17 +35,21 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             get { return _stringValue; }
         }
 
-        // Win 8.1 does not support GetAllDescriptors, so we'll have to compile a list by querying for each known descriptor type.
         private IList<IDescriptor> _descriptors;
         public IList<IDescriptor> Descriptors 
         {
             get 
             {
                 if (_descriptors == null)
+#if WINDOWS_PHONE_APP
+                    _descriptors = _characteristic.GetAllDescriptors().Select((c) => new Descriptor(c) as IDescriptor).ToList();
+#else
+                    // Win 8.1 does not support GetAllDescriptors, so we'll have to compile a list by querying for each known descriptor type.
                     _descriptors = KnownDescriptors.All()
                         .SelectMany((kd) => _characteristic.GetDescriptors(kd.ID))
                         .Select((d) => new Descriptor(d))
                         .Cast<IDescriptor>().ToList();
+#endif
                 return _descriptors;
             }
         }
@@ -142,11 +146,24 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         {
             if (!CanRead) return;
 
-            var result = await _characteristic.ReadValueAsync();
+            GattReadResult result;
+            try
+            {
+                result = await _characteristic.ReadValueAsync();
+            }
+            catch (Exception ex)
+            {
+                if (ex.HResult == -2140864511) //The characteristic was not found..?
+                    return;
+                else
+                    throw new Exception("Could not read the value.", ex);
+            }
+
             if (result.Status == GattCommunicationStatus.Success)
             {
                 using (DataReader valueReader = DataReader.FromBuffer(result.Value))
                 {
+                    _value = new byte[valueReader.UnconsumedBufferLength];
                     valueReader.ReadBytes(_value);
                     _stringValue = System.Text.Encoding.UTF8.GetString(_value, 0, _value.Length); //Is this the correct encoding?
                 }
@@ -162,7 +179,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         public Characteristic(GattCharacteristic characteristic)
         {
             _characteristic = characteristic;
-            _characteristic.ValueChanged += OnCharacteristicValueChanged;
+            //_characteristic.ValueChanged += OnCharacteristicValueChanged;
         }
 
     }

@@ -49,14 +49,18 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             return Characteristics.Where((c) => characteristic.ID == c.ID).First();
         }
 
-        // Win 8.1 does not support GetAllCharacteristics, so we'll have to compile a list by querying for each known characteristic type.
         private void LoadCharacteristics()
         {
             if (_characteristics == null)
+#if WINDOWS_PHONE_APP
+                _characteristics = _service.GetAllCharacteristics().Select((c) => new Characteristic(c) as ICharacteristic).ToList();
+#else
+                // Win 8.1 (desktop/tablet) does not support GetAllCharacteristics, so we'll have to compile a list by querying for each known characteristic type.
                 _characteristics = KnownCharacteristics.All()
                     .SelectMany((kc) => _service.GetCharacteristics(kc.ID))
                     .Select((c) => new Characteristic(c))
                     .Cast<ICharacteristic>().ToList();
+#endif
         }
 
         public void DiscoverCharacteristics()

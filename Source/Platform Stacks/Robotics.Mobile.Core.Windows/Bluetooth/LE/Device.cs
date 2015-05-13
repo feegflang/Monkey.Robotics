@@ -14,17 +14,17 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         private DeviceInformation _device;
         private string _deviceContainerId;
 
-        public override event EventHandler ServicesDiscovered;
+        public event EventHandler ServicesDiscovered;
 
-        public override Guid ID
+        public Guid ID
         {
             get
             {
-                return Guid.Parse(_device.Id);
+                return Guid.Parse(_deviceContainerId);
             }
         }
 
-        public override string Name
+        public string Name
         {
             get
             {
@@ -32,7 +32,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             }
         }
 
-        public override object NativeDevice
+        public object NativeDevice
         {
             get
             {
@@ -40,7 +40,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             }
         }
 
-        public override int Rssi
+        public int Rssi
         {
             get
             {
@@ -49,7 +49,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         }
 
         private IList<IService> _services;
-        public override IList<IService> Services
+        public IList<IService> Services
         {
             get
             {
@@ -58,7 +58,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         }
 
         private DeviceState _state;
-        public override DeviceState State
+        public DeviceState State
         {
             get
             {
@@ -66,10 +66,18 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             }
         }
 
-        public async override void DiscoverServices()
+        /// <summary>
+        /// Discover services on the BLE device. IMPORTANT: On Windows, this must first be called from the UI 
+        /// thread in order to display a consent dialog to the user.
+        /// </summary>
+        /// <remarks>
+        /// See https://msdn.microsoft.com/en-us/library/windows/apps/windows.devices.bluetooth.genericattributeprofile.gattdeviceservice.fromidasync%28v=win.10%29.aspx for
+        /// information on the UI thread requirement.
+        /// </remarks>
+        public async void DiscoverServices()
         {
             var primaryService = await GattDeviceService.FromIdAsync(_device.Id);
-
+            
             var discoveredServices = new List<IService>();
             discoveredServices.Add(new Service(primaryService, true));
 
@@ -110,6 +118,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         {
             _device = device;
             StartDeviceConnectionWatcher();
+            _deviceContainerId = device.Properties["System.Devices.ContainerId"].ToString();
         }
 
 
