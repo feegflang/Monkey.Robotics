@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 
 namespace Robotics.Mobile.Core.Bluetooth.LE
@@ -70,10 +71,38 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
                 CharacteristicsDiscovered(this, EventArgs.Empty);
         }
 
+        /// <summary>
+        /// Try to connect to the characteristic by reading it. Returns true if a readable characteristic was found 
+        /// and a connection was attempted. A return value of false means a connection was not attempted. A return value
+        /// of true does NOT mean that the connection was actually successful.
+        /// </summary>
+        /// <remarks>
+        /// This is what happens when your wireless device API does not have a thing called "ConnectToTheDevice"
+        /// </remarks>
+        internal async Task<bool> TryAttemptConnect()
+        {
+            LoadCharacteristics();
+            foreach (Characteristic characteristic in _characteristics)
+            {
+                if (characteristic.CanRead)
+                {
+                    await characteristic.ForceReadAsync();
+                    return true;
+                }
+                if (characteristic.CanWrite)
+                {
+                    characteristic.ForceConnectionWriteAsync();
+                    return true;
+                }
+            }
+            return false;
+        }
+
         public Service(GattDeviceService service, bool isPrimary)
         {
             _service = service;
             _primary = isPrimary;
         }
+
     }
 }

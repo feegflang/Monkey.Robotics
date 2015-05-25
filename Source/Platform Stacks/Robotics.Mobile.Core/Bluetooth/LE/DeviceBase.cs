@@ -5,7 +5,8 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 {
 	public abstract class DeviceBase : IDevice
 	{
-		public virtual event EventHandler ServicesDiscovered = delegate {};
+        public virtual event EventHandler ServicesDiscovered = delegate { };
+        public virtual event EventHandler StateChanged = delegate { };
 
 		public virtual Guid ID {
 			get {
@@ -52,6 +53,6 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 			throw new NotImplementedException (); 
 		}
 
-	}
+    }
 }
 

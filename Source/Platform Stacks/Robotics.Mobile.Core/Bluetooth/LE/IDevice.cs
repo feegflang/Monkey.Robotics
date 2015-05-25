@@ -9,6 +9,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 		//IDevice(object nativeDevice);
 
 		event EventHandler ServicesDiscovered;
+        event EventHandler StateChanged;
 
 		//TODO: should this be string or GUID? i think for our purposes, UUID on both plats
 		// is fine as a GUID

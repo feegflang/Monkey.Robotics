@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
+using Windows.Foundation;
 using Windows.Storage.Streams;
 
 namespace Robotics.Mobile.Core.Bluetooth.LE
@@ -12,6 +16,8 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         private GattCharacteristic _characteristic;
 
         public event EventHandler<CharacteristicReadEventArgs> ValueUpdated;
+
+        public static int TransactionTimeout { get; set; }
 
         public Guid ID
         {
@@ -130,26 +136,83 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             return this;
         }
 
-        public async void Write(byte[] data)
+        internal async Task<ICharacteristic> ForceReadAsync()
+        {
+            await Refresh(true);
+            return this;
+        }
+
+        private object _writeLock = new object();
+        private List<IBuffer> _currentTransaction;
+        private List<IAsyncAction> _currentWriteOperations;
+
+
+        // This function provides the capability to write to a characteristic in the order that write commands are called, even though
+        // the write command on the native characteristic object is an async call. The write performance is significantly faster than 
+        // if we called _characteristic.WriteValueAsync(bytes).AsTask().Wait 
+        private IAsyncAction PerformWriteOperationAsync(IBuffer writeBuffer)
+        {
+            lock (_writeLock)
+            {
+                if (_currentTransaction == null) _currentTransaction = new List<IBuffer>();
+                _currentTransaction.Add(writeBuffer);
+            }
+
+            return AsyncInfo.Run(async (cancelationToken) =>
+                {
+                    await Task.Delay(TransactionTimeout);
+                    if (cancelationToken.IsCancellationRequested) return;
+                    List<IBuffer> myTransaction;
+                    lock (_writeLock)
+                    {
+                        if (_currentTransaction == null) return;
+                        myTransaction = _currentTransaction;
+                        _currentTransaction = null;
+                    }
+                    foreach (IBuffer toWrite in myTransaction)
+                        await _characteristic.WriteValueAsync(toWrite);
+                });
+        }
+
+        internal async void ForceConnectionWriteAsync()
+        {
+            if (!CanWrite) return;
+            using (DataWriter valueWriter = new DataWriter())
+            {
+                valueWriter.WriteBytes(new byte[] { 13 });
+                IBuffer bytes;
+                bytes = valueWriter.DetachBuffer();
+                await _characteristic.WriteValueAsync(bytes);
+            }
+        }
+
+        public void Write(byte[] data)
         {
             if (!CanWrite) return;
 
             using (DataWriter valueWriter = new DataWriter())
             {
                 valueWriter.WriteBytes(data);
-                await _characteristic.WriteValueAsync(valueWriter.DetachBuffer());
-
+                IBuffer bytes;
+                bytes = valueWriter.DetachBuffer();
+                lock (_currentWriteOperations)
+                {
+                    foreach (var writeOperation in _currentWriteOperations)
+                        if (writeOperation.Status == AsyncStatus.Started) writeOperation.Cancel();
+                    _currentWriteOperations.Clear();
+                    _currentWriteOperations.Add(PerformWriteOperationAsync(bytes));
+                }
             }
         }
 
-        private async Task Refresh()
+        private async Task Refresh(bool force = false)
         {
             if (!CanRead) return;
 
             GattReadResult result;
             try
             {
-                result = await _characteristic.ReadValueAsync();
+                result = await _characteristic.ReadValueAsync(force ? Windows.Devices.Bluetooth.BluetoothCacheMode.Uncached : Windows.Devices.Bluetooth.BluetoothCacheMode.Cached );
             }
             catch (Exception ex)
             {
@@ -179,7 +242,12 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         public Characteristic(GattCharacteristic characteristic)
         {
             _characteristic = characteristic;
+            _currentWriteOperations = new List<IAsyncAction>();
             //_characteristic.ValueChanged += OnCharacteristicValueChanged;
+        }
+
+        static Characteristic () {
+            TransactionTimeout = 50;
         }
 
     }

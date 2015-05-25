@@ -25,11 +25,12 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             get { return _isScanning; }
         }
 
+        private IList<IDevice> _discovered;
         public IList<IDevice> DiscoveredDevices
         {
             get
             {
-                return new IDevice[] { }.ToList();
+                return _discovered;
             }
         }
 
@@ -41,12 +42,12 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 
         public void StartScanningForDevices()
         {
-            RefreshConnectedDevices(_serviceGuids.Concat(KnownServices.All().Select((ks) => ks.ID)));
+            RefreshDiscoveredDevices(_serviceGuids.Concat(KnownServices.All().Select((ks) => ks.ID)));
         }
 
         public void StartScanningForDevices(Guid serviceUuid)
         {
-            RefreshConnectedDevices(new Guid[] {serviceUuid});
+            RefreshDiscoveredDevices(new Guid[] {serviceUuid});
         }
 
         public void StopScanningForDevices()
@@ -56,7 +57,10 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 
         public void ConnectToDevice(IDevice device)
         {
-            ScanNotSupported();
+            Device nativeDevice = device as Device;
+            if (nativeDevice == null) throw new ArgumentException("Unknown device type", "device");
+
+            nativeDevice.Connect();
         }
 
         public void DisconnectDevice(IDevice device)
@@ -83,19 +87,32 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             }
         }
 
-        private async void RefreshConnectedDevices(IEnumerable<Guid> searchGuids)
+        private async void RefreshDiscoveredDevices(IEnumerable<Guid> searchGuids)
         {
             _isScanning = true;
-            List<DeviceInformation> allConnected = new List<DeviceInformation>();
+            List<DeviceInformation> allPaired = new List<DeviceInformation>();
             foreach (Guid guid in searchGuids)
-                allConnected.AddRange(await DeviceInformation.FindAllAsync(GattDeviceService.GetDeviceSelectorFromUuid(guid), new string[] { "System.Devices.ContainerId" }));
+                allPaired.AddRange(await DeviceInformation.FindAllAsync(GattDeviceService.GetDeviceSelectorFromUuid(guid), new string[] { "System.Devices.ContainerId" }));
 
             _isScanning = false;
-            _connected = allConnected.Distinct(new DeviceComparer()).Select((d) => new Device(d)).Cast<IDevice>().ToList();
-            if (DeviceConnected != null)
-                foreach (IDevice connected in _connected)
-                    DeviceConnected(this, new DeviceConnectionEventArgs { Device = connected, ErrorMessage = null });
+            _discovered = allPaired.Distinct(new DeviceComparer()).Select((d) => new Device(d)).Cast<IDevice>().ToList();
+            foreach (Device discovered in _discovered)
+            {
+                discovered.StateChanged += discoveredDevice_StateChanged;
+                if (DeviceDiscovered != null)
+                        DeviceDiscovered(this, new DeviceDiscoveredEventArgs { Device = discovered});
+                if ((discovered.State == DeviceState.Connected) && (DeviceConnected != null))
+                    DeviceConnected(this, new DeviceConnectionEventArgs() { Device = discovered });
+            }
 
+        }
+
+        void discoveredDevice_StateChanged(object sender, EventArgs e)
+        {
+            Device device = sender as Device;
+            if (device == null) return;
+            if ((device.State == DeviceState.Connected) && (DeviceConnected != null))
+                DeviceConnected(this, new DeviceConnectionEventArgs() { Device = device });
         }
 
         public WindowsAdapter(IEnumerable<Guid> serviceGuids)
