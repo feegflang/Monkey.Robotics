@@ -137,7 +137,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
         }
 
 #if WINDOWS_PHONE_APP
-        private void DiscoverServices(bool notify)
+        private async Task DiscoverServices(bool notify)
         {
             var discoveredServices = new List<IService>();
 

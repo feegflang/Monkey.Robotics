@@ -174,7 +174,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
                 });
         }
 
-        internal async void ForceConnectionWriteAsync()
+        internal async Task ForceConnectionWriteAsync()
         {
             if (!CanWrite) return;
             using (DataWriter valueWriter = new DataWriter())
@@ -216,7 +216,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
             }
             catch (Exception ex)
             {
-                if (ex.HResult == -2140864511) //The characteristic was not found..?
+                if ((ex.HResult == -2140864511) || (ex.HResult == -2140864510)) //The characteristic was not found..?
                     return;
                 else
                     throw new Exception("Could not read the value.", ex);

@@ -91,7 +91,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
                 }
                 if (characteristic.CanWrite)
                 {
-                    characteristic.ForceConnectionWriteAsync();
+                    await characteristic.ForceConnectionWriteAsync();
                     return true;
                 }
             }
